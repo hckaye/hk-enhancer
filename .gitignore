@@ -1,0 +1,8 @@
+build/
+cmake-build-*/
+.idea/
+.vscode/
+*.vst3
+*.component
+*.app
+.DS_Store
