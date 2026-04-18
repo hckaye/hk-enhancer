@@ -37,9 +37,11 @@ void TubeSaturator::process(juce::AudioBuffer<float>& buffer, juce::SmoothedValu
     int oversampledLength = static_cast<int>(oversampledBlock.getNumSamples());
 
     // Process with saturation at oversampled rate
-    // Use a fixed moderate drive; the amount parameter controls wet/dry blend
-    float drive = 4.0f;
-    float makeup = 1.0f / std::tanh(drive); // compensate for volume loss
+    // Drive scales gently with amount: 1.0 (transparent) to 1.8 (mild warmth)
+    // Read current amount for drive calculation (per-block, not per-sample — acceptable)
+    float amt = amount.getCurrentValue();
+    float drive = 1.0f + amt * 0.8f;
+    float makeup = 1.0f / std::tanh(drive);
 
     for (int ch = 0; ch < numChannels; ++ch)
     {
@@ -56,13 +58,13 @@ void TubeSaturator::process(juce::AudioBuffer<float>& buffer, juce::SmoothedValu
     // Blend dry/wet based on amount
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        float amt = amount.getNextValue();
+        float currentAmt = amount.getNextValue();
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
             float dry = dryBuffer.getSample(ch, sample);
             float wet = buffer.getSample(ch, sample);
-            buffer.setSample(ch, sample, dry * (1.0f - amt) + wet * amt);
+            buffer.setSample(ch, sample, dry * (1.0f - currentAmt) + wet * currentAmt);
         }
     }
 }
