@@ -15,7 +15,10 @@ private:
     juce::dsp::IIR::Filter<float> hpFilters[2];
     EnvelopeFollower envelopeFollowers[2];
 
-    juce::dsp::Oversampling<float> oversampling{2, 1, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR};
+    juce::dsp::Oversampling<float> oversampling{2, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR};
+
+    // Pre-allocated buffer for generated harmonics
+    juce::AudioBuffer<float> harmonicsBuffer;
 
     double sr = 44100.0;
 

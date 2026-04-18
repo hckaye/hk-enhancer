@@ -51,6 +51,9 @@ private:
     // Buffers for each band
     juce::AudioBuffer<float> lowBand, midBand, highBand;
 
+    // Pre-allocated buffer for dry signal (avoids malloc in processBlock)
+    juce::AudioBuffer<float> dryBuffer;
+
     // Smoothed parameters
     juce::SmoothedValue<float> lowAmountSmoothed, midAmountSmoothed, highAmountSmoothed;
     juce::SmoothedValue<float> subBassAmountSmoothed;

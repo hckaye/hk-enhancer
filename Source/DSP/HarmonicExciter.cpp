@@ -20,6 +20,7 @@ void HarmonicExciter::prepare(double sampleRate, int samplesPerBlock)
         envFollower.setReleaseMs(20.0f);
     }
 
+    harmonicsBuffer.setSize(2, samplesPerBlock);
     oversampling.initProcessing(static_cast<size_t>(samplesPerBlock));
     oversampling.reset();
 }
@@ -38,43 +39,45 @@ void HarmonicExciter::process(juce::AudioBuffer<float>& buffer, juce::SmoothedVa
     int numSamples = buffer.getNumSamples();
     int numChannels = juce::jmin(buffer.getNumChannels(), 2);
 
-    // We need temporary storage for the harmonics we generate
-    juce::AudioBuffer<float> harmonicsBuffer(numChannels, numSamples);
-    harmonicsBuffer.clear();
+    // Ensure pre-allocated buffer is large enough
+    if (harmonicsBuffer.getNumSamples() < numSamples)
+        harmonicsBuffer.setSize(2, numSamples, false, false, true);
+    harmonicsBuffer.clear(0, numSamples);
 
-    // Extract harmonics: HPF -> envelope tracking -> waveshaping
+    // Step 1: HPF + envelope tracking to isolate high-frequency content
     for (int ch = 0; ch < numChannels; ++ch)
     {
         for (int sample = 0; sample < numSamples; ++sample)
         {
             float input = buffer.getSample(ch, sample);
-
-            // Highpass filter to isolate high-frequency content
             float filtered = hpFilters[ch].processSample(input);
-
-            // Track envelope for dynamic scaling
             float env = envelopeFollowers[ch].process(filtered);
 
-            // Generate harmonics via waveshaping
-            float harmonic = exciterWaveshape(filtered * 2.0f); // boost before clipping
-
-            // Scale harmonics by envelope (program-dependent)
-            float scaledHarmonic = harmonic * (env > 0.001f ? 1.0f : 0.0f);
-
-            harmonicsBuffer.setSample(ch, sample, scaledHarmonic);
+            // Scale by envelope (gate very quiet signals)
+            float scaled = filtered * 2.0f * (env > 0.001f ? 1.0f : 0.0f);
+            harmonicsBuffer.setSample(ch, sample, scaled);
         }
     }
 
-    // Oversample the harmonics to reduce aliasing
+    // Step 2: Upsample the filtered signal
     auto harmonicsBlock = juce::dsp::AudioBlock<float>(harmonicsBuffer).getSubBlock(0, static_cast<size_t>(numSamples));
-    oversampling.processSamplesUp(harmonicsBlock);
+    auto oversampledBlock = oversampling.processSamplesUp(harmonicsBlock);
 
-    // No additional processing needed at oversampled rate for the exciter
-    // (the waveshaping was already done, oversampling just filters the result)
+    // Step 3: Apply waveshaping at the oversampled rate (correct order for anti-aliasing)
+    int oversampledLength = static_cast<int>(oversampledBlock.getNumSamples());
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        auto* data = oversampledBlock.getChannelPointer(static_cast<size_t>(ch));
+        for (int i = 0; i < oversampledLength; ++i)
+        {
+            data[i] = exciterWaveshape(data[i]);
+        }
+    }
 
+    // Step 4: Downsample back
     oversampling.processSamplesDown(harmonicsBlock);
 
-    // Blend harmonics into original signal based on amount
+    // Step 5: Blend harmonics into original signal based on amount
     for (int sample = 0; sample < numSamples; ++sample)
     {
         float amt = amount.getNextValue();

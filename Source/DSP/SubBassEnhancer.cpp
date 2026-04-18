@@ -20,8 +20,8 @@ void SubBassEnhancer::prepare(double sampleRate, int /*samplesPerBlock*/)
         bpFilters[ch].coefficients = bpCoeffs;
         bpFilters[ch].reset();
 
-        // Smoothing LPF at 25Hz — allows 20Hz+ content through while rounding square edges
-        auto smoothCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 25.0f, 0.5f);
+        // Smoothing LPF at 50Hz — rounds square wave edges while preserving 20-50Hz sub content
+        auto smoothCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 50.0f, 0.5f);
         subSmoothingFilters[ch].coefficients = smoothCoeffs;
         subSmoothingFilters[ch].reset();
     }

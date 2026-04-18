@@ -10,6 +10,7 @@ public:
 
 private:
     juce::dsp::Oversampling<float> oversampling{2, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR};
+    juce::AudioBuffer<float> dryBuffer;
     double sr = 44100.0;
 
     // Asymmetric soft clipping

@@ -66,10 +66,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout HKEnhancerProcessor::createP
 
 void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Prepare band buffers
+    // Pre-allocate all buffers
     lowBand.setSize(2, samplesPerBlock);
     midBand.setSize(2, samplesPerBlock);
     highBand.setSize(2, samplesPerBlock);
+    dryBuffer.setSize(2, samplesPerBlock);
 
     // Prepare DSP
     splitter.prepare(sampleRate, samplesPerBlock);
@@ -78,7 +79,7 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     harmonicExciter.prepare(sampleRate, samplesPerBlock);
     subBassEnhancer.prepare(sampleRate, samplesPerBlock);
 
-    // Prepare smoothed values
+    // Prepare smoothed values with initial parameter values to avoid startup ramp
     double smoothTime = 0.02; // 20ms
     lowAmountSmoothed.reset(sampleRate, smoothTime);
     midAmountSmoothed.reset(sampleRate, smoothTime);
@@ -86,6 +87,14 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     subBassAmountSmoothed.reset(sampleRate, smoothTime);
     outputGainSmoothed.reset(sampleRate, smoothTime);
     mixSmoothed.reset(sampleRate, smoothTime);
+
+    lowAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("lowAmount")->load() / 100.0f);
+    midAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("midAmount")->load() / 100.0f);
+    highAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("highAmount")->load() / 100.0f);
+    subBassAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("subBassAmount")->load() / 100.0f);
+    outputGainSmoothed.setCurrentAndTargetValue(
+        juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outputGain")->load()));
+    mixSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("mix")->load() / 100.0f);
 }
 
 void HKEnhancerProcessor::releaseResources()
@@ -93,6 +102,7 @@ void HKEnhancerProcessor::releaseResources()
     lowBand.setSize(0, 0);
     midBand.setSize(0, 0);
     highBand.setSize(0, 0);
+    dryBuffer.setSize(0, 0);
 }
 
 void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
@@ -125,9 +135,11 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputGainDb));
     mixSmoothed.setTargetValue(mix);
 
-    // Store dry signal for mix
-    juce::AudioBuffer<float> dryBuffer;
-    dryBuffer.makeCopyOf(buffer);
+    // Store dry signal for mix (using pre-allocated buffer)
+    if (dryBuffer.getNumSamples() < numSamples)
+        dryBuffer.setSize(2, numSamples, false, false, true);
+    for (int ch = 0; ch < 2; ++ch)
+        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
     // Sub Bass: process on full signal before band splitting
     subBassEnhancer.process(buffer, subBassAmountSmoothed);

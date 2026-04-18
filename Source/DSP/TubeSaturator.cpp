@@ -5,6 +5,7 @@
 void TubeSaturator::prepare(double sampleRate, int samplesPerBlock)
 {
     sr = sampleRate;
+    dryBuffer.setSize(2, samplesPerBlock);
     oversampling.initProcessing(static_cast<size_t>(samplesPerBlock));
     oversampling.reset();
 }
@@ -23,9 +24,11 @@ void TubeSaturator::process(juce::AudioBuffer<float>& buffer, juce::SmoothedValu
     int numSamples = buffer.getNumSamples();
     int numChannels = juce::jmin(buffer.getNumChannels(), 2);
 
-    // Make a copy of dry signal for blending
-    juce::AudioBuffer<float> dryBuffer;
-    dryBuffer.makeCopyOf(buffer);
+    // Copy dry signal for blending (pre-allocated buffer)
+    if (dryBuffer.getNumSamples() < numSamples)
+        dryBuffer.setSize(2, numSamples, false, false, true);
+    for (int ch = 0; ch < numChannels; ++ch)
+        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
 
     // Upsample
     auto block = juce::dsp::AudioBlock<float>(buffer).getSubBlock(0, static_cast<size_t>(numSamples));
