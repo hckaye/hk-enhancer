@@ -32,6 +32,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout HKEnhancerProcessor::createP
                                                                  0.0f,
                                                                  "%"));
 
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"subBassAmount", 1},
+                                                                 "Sub Bass",
+                                                                 juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+                                                                 0.0f,
+                                                                 "%"));
+
     params.push_back(
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"lowMidFreq", 1},
                                                     "Low/Mid Crossover",
@@ -70,12 +76,14 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     subHarmonic.prepare(sampleRate, samplesPerBlock);
     tubeSaturator.prepare(sampleRate, samplesPerBlock);
     harmonicExciter.prepare(sampleRate, samplesPerBlock);
+    subBassEnhancer.prepare(sampleRate, samplesPerBlock);
 
     // Prepare smoothed values
     double smoothTime = 0.02; // 20ms
     lowAmountSmoothed.reset(sampleRate, smoothTime);
     midAmountSmoothed.reset(sampleRate, smoothTime);
     highAmountSmoothed.reset(sampleRate, smoothTime);
+    subBassAmountSmoothed.reset(sampleRate, smoothTime);
     outputGainSmoothed.reset(sampleRate, smoothTime);
     mixSmoothed.reset(sampleRate, smoothTime);
 }
@@ -104,6 +112,7 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float lowAmount = apvts.getRawParameterValue("lowAmount")->load() / 100.0f;
     float midAmount = apvts.getRawParameterValue("midAmount")->load() / 100.0f;
     float highAmount = apvts.getRawParameterValue("highAmount")->load() / 100.0f;
+    float subBassAmount = apvts.getRawParameterValue("subBassAmount")->load() / 100.0f;
     float lowMidFreq = apvts.getRawParameterValue("lowMidFreq")->load();
     float midHighFreq = apvts.getRawParameterValue("midHighFreq")->load();
     float outputGainDb = apvts.getRawParameterValue("outputGain")->load();
@@ -112,12 +121,16 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     lowAmountSmoothed.setTargetValue(lowAmount);
     midAmountSmoothed.setTargetValue(midAmount);
     highAmountSmoothed.setTargetValue(highAmount);
+    subBassAmountSmoothed.setTargetValue(subBassAmount);
     outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputGainDb));
     mixSmoothed.setTargetValue(mix);
 
     // Store dry signal for mix
     juce::AudioBuffer<float> dryBuffer;
     dryBuffer.makeCopyOf(buffer);
+
+    // Sub Bass: process on full signal before band splitting
+    subBassEnhancer.process(buffer, subBassAmountSmoothed);
 
     // Update crossover frequencies
     splitter.setCrossoverFrequencies(lowMidFreq, midHighFreq);

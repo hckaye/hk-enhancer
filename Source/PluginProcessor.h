@@ -1,6 +1,7 @@
 #pragma once
 #include "DSP/HarmonicExciter.h"
 #include "DSP/MultibandSplitter.h"
+#include "DSP/SubBassEnhancer.h"
 #include "DSP/SubharmonicGenerator.h"
 #include "DSP/TubeSaturator.h"
 
@@ -45,12 +46,14 @@ private:
     SubharmonicGenerator subHarmonic;
     TubeSaturator tubeSaturator;
     HarmonicExciter harmonicExciter;
+    SubBassEnhancer subBassEnhancer;
 
     // Buffers for each band
     juce::AudioBuffer<float> lowBand, midBand, highBand;
 
     // Smoothed parameters
     juce::SmoothedValue<float> lowAmountSmoothed, midAmountSmoothed, highAmountSmoothed;
+    juce::SmoothedValue<float> subBassAmountSmoothed;
     juce::SmoothedValue<float> outputGainSmoothed, mixSmoothed;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HKEnhancerProcessor)

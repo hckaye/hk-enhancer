@@ -1,13 +1,15 @@
 #include "PluginEditor.h"
 
 HKEnhancerEditor::HKEnhancerEditor(HKEnhancerProcessor& p)
-    : AudioProcessorEditor(&p), lowControl("LOW", juce::Colour(0xff4a9eff), p.getAPVTS(), "lowAmount"),
+    : AudioProcessorEditor(&p), subBassControl("SUB", juce::Colour(0xffcc44ff), p.getAPVTS(), "subBassAmount"),
+      lowControl("LOW", juce::Colour(0xff4a9eff), p.getAPVTS(), "lowAmount"),
       midControl("MID", juce::Colour(0xff7acc52), p.getAPVTS(), "midAmount"),
       highControl("HIGH", juce::Colour(0xffff8c42), p.getAPVTS(), "highAmount")
 {
     setLookAndFeel(&lookAndFeel);
-    setSize(600, 400);
+    setSize(720, 400);
 
+    addAndMakeVisible(subBassControl);
     addAndMakeVisible(lowControl);
     addAndMakeVisible(midControl);
     addAndMakeVisible(highControl);
@@ -61,9 +63,10 @@ void HKEnhancerEditor::resized()
     auto area = getLocalBounds();
     area.removeFromTop(50); // title space
 
-    // Main band controls (top section)
+    // Main band controls (top section) — 4 bands
     auto bandArea = area.removeFromTop(200);
-    int bandWidth = bandArea.getWidth() / 3;
+    int bandWidth = bandArea.getWidth() / 4;
+    subBassControl.setBounds(bandArea.removeFromLeft(bandWidth));
     lowControl.setBounds(bandArea.removeFromLeft(bandWidth));
     midControl.setBounds(bandArea.removeFromLeft(bandWidth));
     highControl.setBounds(bandArea);

@@ -31,6 +31,7 @@ target_sources(HKEnhancer PRIVATE
     Source/DSP/MultibandSplitter.cpp
     Source/DSP/EnvelopeFollower.cpp
     Source/DSP/SubharmonicGenerator.cpp
+    Source/DSP/SubBassEnhancer.cpp
     Source/DSP/TubeSaturator.cpp
     Source/DSP/HarmonicExciter.cpp
     Source/GUI/LookAndFeel.cpp
@@ -85,11 +86,13 @@ if(BUILD_TESTS)
         Tests/TestTubeSaturator.cpp
         Tests/TestHarmonicExciter.cpp
         Tests/TestSubharmonicGenerator.cpp
+        Tests/TestSubBassEnhancer.cpp
         Source/DSP/EnvelopeFollower.cpp
         Source/DSP/MultibandSplitter.cpp
         Source/DSP/TubeSaturator.cpp
         Source/DSP/HarmonicExciter.cpp
         Source/DSP/SubharmonicGenerator.cpp
+        Source/DSP/SubBassEnhancer.cpp
     )
 
     target_include_directories(HKEnhancerTests PRIVATE Source)

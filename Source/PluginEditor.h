@@ -17,7 +17,7 @@ public:
 private:
     HKEnhancerLookAndFeel lookAndFeel;
 
-    BandControl lowControl, midControl, highControl;
+    BandControl subBassControl, lowControl, midControl, highControl;
 
     juce::Slider lowMidFreqSlider, midHighFreqSlider, outputGainSlider, mixSlider;
     juce::Label lowMidFreqLabel, midHighFreqLabel, outputGainLabel, mixLabel;
