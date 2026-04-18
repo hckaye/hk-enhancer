@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    name: Build (${{ matrix.artifact }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: HK-Enhancer-macOS
+          - os: ubuntu-24.04
+            artifact: HK-Enhancer-Linux
+          - os: windows-latest
+            artifact: HK-Enhancer-Windows-x64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build \
+            libasound2-dev libfreetype-dev libx11-dev libxrandr-dev \
+            libxinerama-dev libxcursor-dev libwebkit2gtk-4.1-dev
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: juce-release-${{ matrix.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build -A x64 -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
+        run: ./build/HKEnhancerTests
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $exe = Get-ChildItem -Path build -Recurse -Filter "HKEnhancerTests.exe" | Select-Object -First 1
+          if (-not $exe) { Write-Error "HKEnhancerTests.exe not found"; exit 1 }
+          & $exe.FullName
+        shell: pwsh
+
+      - name: Package VST3 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd build/HKEnhancer_artefacts/Release/VST3
+          zip -r "$GITHUB_WORKSPACE/${{ matrix.artifact }}.zip" "HK Enhancer.vst3"
+
+      - name: Package VST3 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd build/HKEnhancer_artefacts/Release/VST3
+          zip -r "$GITHUB_WORKSPACE/${{ matrix.artifact }}.zip" "HK Enhancer.vst3"
+
+      - name: Package VST3 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path "build\HKEnhancer_artefacts\Release\VST3\HK Enhancer.vst3" -DestinationPath "${{ matrix.artifact }}.zip"
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/HK-Enhancer-macOS/HK-Enhancer-macOS.zip
+            artifacts/HK-Enhancer-Linux/HK-Enhancer-Linux.zip
+            artifacts/HK-Enhancer-Windows-x64/HK-Enhancer-Windows-x64.zip

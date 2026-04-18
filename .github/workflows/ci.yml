@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-24.04]
+        os: [macos-latest, ubuntu-24.04, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -91,16 +91,28 @@ jobs:
           path: build/_deps
           key: juce-${{ matrix.os }}-${{ hashFiles('CMakeLists.txt') }}
 
-      - name: Configure
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTS=ON
 
-      - name: Build
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: cmake -S . -B build -A x64 -DBUILD_TESTS=ON
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
         run: cmake --build build --config Release 2>&1 | tee build.log
 
-      - name: Check for warnings in Source
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release 2>&1 | Tee-Object -FilePath build.log
+        shell: pwsh
+
+      - name: Check for warnings in Source (Unix)
+        if: runner.os != 'Windows'
         run: |
           if grep -i "warning:" build.log | grep "hk-enhancer/Source"; then
             echo "::error::Build warnings found in Source/"
@@ -108,5 +120,27 @@ jobs:
           fi
           echo "No warnings found in Source/"
 
-      - name: Run tests
+      - name: Check for warnings in Source (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $warnings = Select-String -Path build.log -Pattern "warning:" | Select-String -Pattern "hk-enhancer[\\/]Source"
+          if ($warnings) {
+            Write-Error "Build warnings found in Source/"
+            $warnings | ForEach-Object { Write-Host $_.Line }
+            exit 1
+          }
+          Write-Host "No warnings found in Source/"
+        shell: pwsh
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
         run: ./build/HKEnhancerTests --reporter console
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $exe = Get-ChildItem -Path build -Recurse -Filter "HKEnhancerTests.exe" | Select-Object -First 1
+          if (-not $exe) { Write-Error "HKEnhancerTests.exe not found"; exit 1 }
+          Write-Host "Running $($exe.FullName)"
+          & $exe.FullName --reporter console
+        shell: pwsh

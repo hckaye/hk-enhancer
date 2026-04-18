@@ -4,15 +4,17 @@ HKEnhancerEditor::HKEnhancerEditor(HKEnhancerProcessor& p)
     : AudioProcessorEditor(&p), subBassControl("SUB", juce::Colour(0xffcc44ff), p.getAPVTS(), "subBassAmount"),
       lowControl("LOW", juce::Colour(0xff4a9eff), p.getAPVTS(), "lowAmount"),
       midControl("MID", juce::Colour(0xff7acc52), p.getAPVTS(), "midAmount"),
-      highControl("HIGH", juce::Colour(0xffff8c42), p.getAPVTS(), "highAmount")
+      highControl("HIGH", juce::Colour(0xffff8c42), p.getAPVTS(), "highAmount"),
+      textureControl("TEXTURE", juce::Colour(0xffff5577), p.getAPVTS(), "textureAmount")
 {
     setLookAndFeel(&lookAndFeel);
-    setSize(720, 400);
+    setSize(820, 400);
 
     addAndMakeVisible(subBassControl);
     addAndMakeVisible(lowControl);
     addAndMakeVisible(midControl);
     addAndMakeVisible(highControl);
+    addAndMakeVisible(textureControl);
 
     setupSmallKnob(lowMidFreqSlider, lowMidFreqLabel, "LOW/MID");
     setupSmallKnob(midHighFreqSlider, midHighFreqLabel, "MID/HIGH");
@@ -63,13 +65,14 @@ void HKEnhancerEditor::resized()
     auto area = getLocalBounds();
     area.removeFromTop(50); // title space
 
-    // Main band controls (top section) — 4 bands
+    // Main band controls (top section) — 5 controls
     auto bandArea = area.removeFromTop(200);
-    int bandWidth = bandArea.getWidth() / 4;
+    int bandWidth = bandArea.getWidth() / 5;
     subBassControl.setBounds(bandArea.removeFromLeft(bandWidth));
     lowControl.setBounds(bandArea.removeFromLeft(bandWidth));
     midControl.setBounds(bandArea.removeFromLeft(bandWidth));
-    highControl.setBounds(bandArea);
+    highControl.setBounds(bandArea.removeFromLeft(bandWidth));
+    textureControl.setBounds(bandArea);
 
     // Bottom controls
     area.removeFromTop(20); // spacing

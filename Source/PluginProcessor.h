@@ -3,6 +3,7 @@
 #include "DSP/MultibandSplitter.h"
 #include "DSP/SubBassEnhancer.h"
 #include "DSP/SubharmonicGenerator.h"
+#include "DSP/TextureEnhancer.h"
 #include "DSP/TubeSaturator.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -47,6 +48,7 @@ private:
     TubeSaturator tubeSaturator;
     HarmonicExciter harmonicExciter;
     SubBassEnhancer subBassEnhancer;
+    TextureEnhancer textureEnhancer;
 
     // Buffers for each band
     juce::AudioBuffer<float> lowBand, midBand, highBand;
@@ -57,6 +59,7 @@ private:
     // Smoothed parameters
     juce::SmoothedValue<float> lowAmountSmoothed, midAmountSmoothed, highAmountSmoothed;
     juce::SmoothedValue<float> subBassAmountSmoothed;
+    juce::SmoothedValue<float> textureAmountSmoothed;
     juce::SmoothedValue<float> outputGainSmoothed, mixSmoothed;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HKEnhancerProcessor)

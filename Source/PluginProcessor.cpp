@@ -38,6 +38,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout HKEnhancerProcessor::createP
                                                                  0.0f,
                                                                  "%"));
 
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"textureAmount", 1},
+                                                                 "Texture",
+                                                                 juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+                                                                 0.0f,
+                                                                 "%"));
+
     params.push_back(
         std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{"lowMidFreq", 1},
                                                     "Low/Mid Crossover",
@@ -78,6 +84,7 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     tubeSaturator.prepare(sampleRate, samplesPerBlock);
     harmonicExciter.prepare(sampleRate, samplesPerBlock);
     subBassEnhancer.prepare(sampleRate, samplesPerBlock);
+    textureEnhancer.prepare(sampleRate, samplesPerBlock);
 
     // Prepare smoothed values with initial parameter values to avoid startup ramp
     double smoothTime = 0.02; // 20ms
@@ -85,6 +92,7 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     midAmountSmoothed.reset(sampleRate, smoothTime);
     highAmountSmoothed.reset(sampleRate, smoothTime);
     subBassAmountSmoothed.reset(sampleRate, smoothTime);
+    textureAmountSmoothed.reset(sampleRate, smoothTime);
     outputGainSmoothed.reset(sampleRate, smoothTime);
     mixSmoothed.reset(sampleRate, smoothTime);
 
@@ -92,6 +100,7 @@ void HKEnhancerProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     midAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("midAmount")->load() / 100.0f);
     highAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("highAmount")->load() / 100.0f);
     subBassAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("subBassAmount")->load() / 100.0f);
+    textureAmountSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("textureAmount")->load() / 100.0f);
     outputGainSmoothed.setCurrentAndTargetValue(
         juce::Decibels::decibelsToGain(apvts.getRawParameterValue("outputGain")->load()));
     mixSmoothed.setCurrentAndTargetValue(apvts.getRawParameterValue("mix")->load() / 100.0f);
@@ -123,6 +132,7 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float midAmount = apvts.getRawParameterValue("midAmount")->load() / 100.0f;
     float highAmount = apvts.getRawParameterValue("highAmount")->load() / 100.0f;
     float subBassAmount = apvts.getRawParameterValue("subBassAmount")->load() / 100.0f;
+    float textureAmount = apvts.getRawParameterValue("textureAmount")->load() / 100.0f;
     float lowMidFreq = apvts.getRawParameterValue("lowMidFreq")->load();
     float midHighFreq = apvts.getRawParameterValue("midHighFreq")->load();
     float outputGainDb = apvts.getRawParameterValue("outputGain")->load();
@@ -132,6 +142,7 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     midAmountSmoothed.setTargetValue(midAmount);
     highAmountSmoothed.setTargetValue(highAmount);
     subBassAmountSmoothed.setTargetValue(subBassAmount);
+    textureAmountSmoothed.setTargetValue(textureAmount);
     outputGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(outputGainDb));
     mixSmoothed.setTargetValue(mix);
 
@@ -175,6 +186,9 @@ void HKEnhancerProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         buffer.addFrom(ch, 0, midBand, ch, 0, numSamples);
         buffer.addFrom(ch, 0, highBand, ch, 0, numSamples);
     }
+
+    // Texture: full-band harmonic density + dynamic noise (post band-processing)
+    textureEnhancer.process(buffer, textureAmountSmoothed);
 
     // Apply output gain and dry/wet mix
     for (int sample = 0; sample < numSamples; ++sample)
